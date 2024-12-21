@@ -9,17 +9,17 @@ if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
     from homeassistant.loader import Integration
 
-    from .api import IntegrationBlueprintApiClient
+    from .api import TalquinElectricApiClient
     from .coordinator import BlueprintDataUpdateCoordinator
 
 
-type IntegrationBlueprintConfigEntry = ConfigEntry[IntegrationBlueprintData]
+type TalquinElectricConfigEntry = ConfigEntry[TalquinElectricData]
 
 
 @dataclass
-class IntegrationBlueprintData:
+class TalquinElectricData:
     """Data for the Blueprint integration."""
 
-    client: IntegrationBlueprintApiClient
+    client: TalquinElectricApiClient
     coordinator: BlueprintDataUpdateCoordinator
     integration: Integration
