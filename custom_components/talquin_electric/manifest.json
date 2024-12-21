@@ -1,0 +1,12 @@
+{
+  "domain": "talquin_electric",
+  "name": "Talquin Electric",
+  "codeowners": [
+    "@ludeeus"
+  ],
+  "config_flow": true,
+  "documentation": "https://github.com/ludeeus/talquin_electric",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/ludeeus/talquin_electric/issues",
+  "version": "0.0.0"
+}
