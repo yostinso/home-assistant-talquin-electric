@@ -16,6 +16,16 @@ ignore = [
     "ISC001", # incompatible with formatter
 ]
 
+[lint.per-file-ignores]
+"tests/**.py" = [
+    "S101", # Ignore direct assert in test files
+    "S105", # Ignore "secrets" in test files
+    "S106", # Ignore hardcoded passwords in test files
+    "EM101", # Ignore inline exception messages in test files
+    "TRY003", # Ignore long exception messages in test files
+    "SLF001", # Ignore calling private methods in test files
+]
+
 [lint.flake8-pytest-style]
 fixture-parentheses = false
 

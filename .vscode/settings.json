@@ -1,5 +1,13 @@
 {
     "python.analysis.extraPaths": [
         "/home/vscode/.local/lib/python3.12/site-packages"
-    ]
+    ],
+    "python.experiments.optInto": [
+        "pythonTestAdapter"
+    ],
+    "python.testing.pytestArgs": [
+        "tests"
+    ],
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true
 }
