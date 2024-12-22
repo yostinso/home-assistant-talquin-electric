@@ -9,3 +9,5 @@ ATTRIBUTION = "Data provided by https://talquinelectric.com/"
 
 # Common URLs
 BASE_URL = "https://api.talquinelectric.com/v1/"
+TOKEN_URL = f"{BASE_URL}oauth2/token"
+USER_AGENT = "Home Assistant - Talquin Electric Integration"
