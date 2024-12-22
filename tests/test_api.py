@@ -2,7 +2,6 @@
 
 import socket
 from datetime import datetime
-from tkinter import W
 from unittest.mock import AsyncMock, Mock, patch
 
 import aiohttp
