@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import socket
 from datetime import datetime
+import ssl
 from typing import Any
 
-import aiohttp
 import async_timeout
+import httpx
 
 from custom_components.talquin_electric.const import BASE_URL, TOKEN_URL, USER_AGENT
 from custom_components.talquin_electric.usage_entry import TalquinElectricUsageEntry
@@ -29,10 +30,13 @@ class TalquinElectricApiClientAuthenticationError(
     """Exception to indicate an authentication error."""
 
 
-def _verify_response_or_raise(response: aiohttp.ClientResponse) -> None:
+def _verify_response_or_raise(response: httpx.Response) -> None:
     """Verify that the response is valid."""
-    if response.status in (401, 403):
-        msg = "Invalid credentials"
+    if response.status_code in (401, 403):
+        if response.headers.get("cf-mitigated") == "challenge":
+            msg = "Cloudflare challenge received"
+        else:
+            msg = "Invalid credentials"
         raise TalquinElectricApiClientAuthenticationError(
             msg,
         )
@@ -46,7 +50,7 @@ def _handle_exception(exception: Exception) -> None:
             raise TalquinElectricApiClientCommunicationError(
                 msg,
             ) from exception
-        case aiohttp.ClientError() | socket.gaierror():
+        case httpx.HTTPStatusError() | socket.gaierror():
             msg = f"Error fetching information - {exception}"
             raise TalquinElectricApiClientCommunicationError(
                 msg,
@@ -56,6 +60,13 @@ def _handle_exception(exception: Exception) -> None:
             raise TalquinElectricApiClientError(
                 msg,
             ) from exception
+
+
+def _ssl_context() -> ssl.SSLContext:
+    """Get a Cloudflare-friendly SSL context."""
+    context = ssl.create_default_context()
+    context.maximum_version = ssl.TLSVersion.TLSv1_2
+    return context
 
 
 class TalquinElectricApiClient:
@@ -123,15 +134,17 @@ class TalquinElectricApiClient:
     ) -> Any:
         """Make an actual API request."""
         try:
-            async with aiohttp.ClientSession() as session:
+            async with httpx.AsyncClient(http2=True, verify=_ssl_context()) as client:
                 async with async_timeout.timeout(10):
-                    response = await session.request(
+                    request = client.build_request(
                         method=method,
                         url=url,
                         headers=headers,
                         data=data,
                         params=params,
                     )
+                    request.headers.__delitem__("accept-encoding")
+                    response = await client.send(request)
                 _verify_response_or_raise(response)
                 return await response.json()
         except Exception as exception:  # pylint: disable=broad-except # noqa: BLE001

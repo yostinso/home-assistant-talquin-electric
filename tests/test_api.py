@@ -2,9 +2,10 @@
 
 import socket
 from datetime import datetime
+from tkinter import W
 from unittest.mock import AsyncMock, Mock, patch
 
-import aiohttp
+import httpx
 import pytest
 from pytest_mock import MockerFixture
 
@@ -87,14 +88,16 @@ async def test_get_usage_data(mocker: MockerFixture) -> None:
 
 
 def test__handle_exception() -> None:
-    """Test converting exceptions from aiohttp to API exceptions."""
+    """Test converting exceptions from httpx to API exceptions."""
     timeouterror = TimeoutError("error message")
     with pytest.raises(TalquinElectricApiClientCommunicationError) as commserror:
         _handle_exception(timeouterror)
     assert commserror.value.__cause__ == timeouterror
     assert str(commserror.value) == "Timeout error fetching information - error message"
 
-    clienterror = aiohttp.ClientError("error message")
+    clienterror = httpx.HTTPStatusError(
+        "error message", request=Mock(), response=Mock()
+    )
     with pytest.raises(TalquinElectricApiClientCommunicationError) as commserror:
         _handle_exception(clienterror)
     assert commserror.value.__cause__ == clienterror
@@ -116,21 +119,21 @@ def test__handle_exception() -> None:
 def test__verify_response_or_raise() -> None:
     """Test that an exception is raised if credentials are bad (401, 403 responses)."""
     response = Mock()
-    response.status = 401
+    response.status_code = 401
     response.raise_for_status.assert_not_called()
     with pytest.raises(TalquinElectricApiClientAuthenticationError) as autherror:
         _verify_response_or_raise(response)
     assert str(autherror.value) == "Invalid credentials"
 
     response = Mock()
-    response.status = 403
+    response.status_code = 403
     response.raise_for_status.assert_not_called()
     with pytest.raises(TalquinElectricApiClientAuthenticationError) as autherror:
         _verify_response_or_raise(response)
     assert str(autherror.value) == "Invalid credentials"
 
     response = Mock()
-    response.status = 200
+    response.status_code = 200
     _verify_response_or_raise(response)
     response.raise_for_status.assert_called_once()
 
@@ -140,15 +143,15 @@ def test__verify_response_or_raise() -> None:
     "custom_components.talquin_electric.api._verify_response_or_raise",
     new_callable=Mock,
 )
-@patch("aiohttp.ClientSession.request", new_callable=AsyncMock)
-async def test__api_wrapper_success(mock_request: AsyncMock, mock_verify: Mock) -> None:
+@patch("httpx.AsyncClient.send", new_callable=AsyncMock)
+async def test__api_wrapper_success(mock_send: AsyncMock, mock_verify: Mock) -> None:
     """Test the API wrapper."""
     client = TalquinElectricApiClient(username="username", password="password")
     mock_response = Mock(name="MockResponse")
     mock_response.json = AsyncMock()
     mock_response.json.return_value = "ok"
 
-    mock_request.return_value = mock_response
+    mock_send.return_value = mock_response
 
     await client._api_wrapper(
         method="post",
@@ -160,13 +163,19 @@ async def test__api_wrapper_success(mock_request: AsyncMock, mock_verify: Mock) 
 
     mock_verify.assert_called_once_with(mock_response)
 
-    mock_request.assert_called_once_with(
+    expected_request = httpx.Request(
         method="post",
-        url="url",
+        url="/url",
         data={"data": "data"},
         headers={"headers": "headers"},
         params={"params": "params"},
     )
+    req = mock_send.call_args.args[0]
+    assert req.headers.get("accept-encoding") is None
+    assert req.method == expected_request.method
+    assert req.url == expected_request.url
+    assert req.content == b"data=data"
+    assert str(req.url) == "/url?params=params"
 
 
 @pytest.mark.asyncio
@@ -178,20 +187,20 @@ async def test__api_wrapper_success(mock_request: AsyncMock, mock_verify: Mock) 
     "custom_components.talquin_electric.api._verify_response_or_raise",
     new_callable=Mock,
 )
-@patch("aiohttp.ClientSession.request", new_callable=AsyncMock)
+@patch("httpx.AsyncClient.send", new_callable=AsyncMock)
 async def test__api_wrapper_failure(
-    mock_request: AsyncMock, mock_verify: Mock, mock_handler: Mock
+    mock_send: AsyncMock, mock_verify: Mock, mock_handler: Mock
 ) -> None:
     """Test the API wrapper."""
     error = TalquinElectricApiClientError("error message")
     client = TalquinElectricApiClient(username="username", password="password")
     mock_response = Mock(name="MockResponse")
-    mock_request.return_value = mock_response
+    mock_send.return_value = mock_response
     mock_verify.side_effect = error
 
     await client._api_wrapper(
         method="post",
-        url="url",
+        url="/url",
         data={"data": "data"},
         headers={"headers": "headers"},
         params={"params": "params"},
