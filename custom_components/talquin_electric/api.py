@@ -55,6 +55,12 @@ def _handle_exception(exception: Exception) -> None:
             raise TalquinElectricApiClientCommunicationError(
                 msg,
             ) from exception
+        case (
+            TalquinElectricApiClientCommunicationError()
+            | TalquinElectricApiClientAuthenticationError()
+            | TalquinElectricApiClientError()
+        ):
+            raise exception
         case _:
             msg = f"Something really wrong happened! - {exception}"
             raise TalquinElectricApiClientError(
